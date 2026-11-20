@@ -1,5 +1,7 @@
 # Gestão à Vista Microsoft
 
+[![CI](https://github.com/Renancrc/gestao-vista-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Renancrc/gestao-vista-app/actions/workflows/ci.yml)
+
 Painel de gestão à vista para ambientes Microsoft: dispositivos do **Intune**, usuários, grupos e licenças do **Entra ID** e indicadores de segurança, num só lugar.
 
 Projeto de portfólio do MBA em Engenharia de Cloud Computing: Python, React, Docker, Kubernetes, Terraform, GitHub Actions e ArgoCD na AWS.
@@ -52,3 +54,8 @@ cd frontend
 npm install
 npm run dev             # http://localhost:5173 (repassa /api para localhost:8000)
 ```
+
+## Qualidade
+
+- **pre-commit** (no seu computador, antes de cada commit): espaços e finais de linha, YAML válido, chaves privadas, ruff e gitleaks. Instalado automaticamente no Dev Container; para rodar em tudo: `pre-commit run --all-files`.
+- **CI no GitHub Actions** (a cada pull request): lint e testes do backend, lint e build do frontend, busca de segredos no histórico e um teste de integração que sobe o `docker compose` e chama `/api/health`.

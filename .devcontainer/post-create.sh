@@ -25,7 +25,17 @@ sudo curl -fsSLo /usr/local/bin/argocd \
   "https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-${ARCH}"
 sudo chmod +x /usr/local/bin/argocd
 
+echo "==> gitleaks (detecta senhas e tokens no código)"
+GITLEAKS_VERSION=8.30.1
+GITLEAKS_ARCH=$([ "$ARCH" = amd64 ] && echo x64 || echo arm64)
+curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GITLEAKS_ARCH}.tar.gz" \
+  | sudo tar -xz -C /usr/local/bin gitleaks
+
 export PATH="$HOME/.local/bin:$PATH"
+
+echo "==> pre-commit (verificações antes de cada commit)"
+uv tool install pre-commit
+pre-commit install
 
 echo
 echo "==> Ferramentas instaladas:"
@@ -42,3 +52,5 @@ echo "k9s:       $(k9s version --short 2>/dev/null | head -n1)"
 echo "argocd:    $(argocd version --client --short 2>/dev/null)"
 echo "aws:       $(aws --version)"
 echo "gh:        $(gh --version | head -n1)"
+echo "gitleaks:  $(gitleaks version)"
+echo "pre-commit: $(pre-commit --version)"

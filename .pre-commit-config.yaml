@@ -1,0 +1,34 @@
+# pre-commit: verificações que rodam no seu computador ANTES de cada commit.
+# Se uma falhar, o commit é barrado (ou o arquivo é corrigido e você adiciona de novo).
+# Instalação (uma vez): pre-commit install
+# Rodar em todos os arquivos: pre-commit run --all-files
+
+repos:
+  # Verificações gerais de arquivos
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace # espaços sobrando no fim da linha
+      - id: end-of-file-fixer # arquivo termina com uma quebra de linha
+      - id: check-yaml # YAML válido (compose, workflows)
+      - id: check-added-large-files # impede arquivos grandes (> 500 KB)
+      - id: check-merge-conflict # sobras de conflito (<<<<<<<)
+      - id: detect-private-key # chaves privadas (.pem, id_rsa...)
+
+  # Python: lint e formatação (as mesmas regras do CI)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.6
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # Segredos: senhas, tokens e chaves nos arquivos que vão entrar no commit.
+  # Usa o binário do gitleaks instalado no Dev Container (post-create.sh).
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (segredos)
+        entry: gitleaks git --pre-commit --staged --redact --verbose
+        language: system
+        pass_filenames: false
