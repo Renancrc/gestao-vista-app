@@ -1,0 +1,97 @@
+# Sobe o sistema inteiro no seu computador com um comando:
+#   docker compose up -d --build
+# Depois, abra http://localhost:3000
+
+name: gestao-vista
+
+# Configuração comum aos três serviços que usam a imagem do backend
+x-backend: &backend
+  build: ./backend
+  image: gestao-vista-api:local
+  env_file: .env
+  restart: unless-stopped
+
+services:
+  # Banco de dados (na nuvem, vira o Amazon RDS)
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432" # aberto só para você conectar com um cliente de banco (DBeaver etc.)
+    volumes:
+      - pgdata:/var/lib/postgresql/data # os dados sobrevivem a um "docker compose down"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Fila de tarefas e cache, usado pelo Celery
+  redis:
+    image: redis:8-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Aplica as migrações do banco e termina (roda antes da API)
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # API FastAPI
+  api:
+    <<: *backend
+    ports:
+      - "8000:8000" # documentação interativa em http://localhost:8000/api/docs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
+      interval: 10s
+      retries: 5
+
+  # Worker Celery: executa as tarefas em segundo plano (coletas da Graph na Fase 2)
+  worker:
+    <<: *backend
+    command: ["celery", "-A", "app.worker", "worker", "--loglevel=info"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Beat: o "relógio" do Celery, que agenda as tarefas periódicas
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "app.worker", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Frontend React servido pelo nginx, que também repassa /api para a API
+  frontend:
+    build: ./frontend
+    image: gestao-vista-frontend:local
+    ports:
+      - "3000:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
