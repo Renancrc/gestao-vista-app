@@ -19,8 +19,10 @@
   // Roda uma vez, depois que o contêiner é criado (instala uv, kind, k9s e argocd)
   "postCreateCommand": "bash .devcontainer/post-create.sh",
 
-  // Portas liberadas para o navegador do Windows: front, API e banco
-  "forwardPorts": [3000, 8000, 5432],
+  // Porta do "npm run dev" (Vite). As portas 3000, 8000 e 5432 NÃO entram aqui:
+  // os contêineres do docker compose já as publicam direto no Windows, e
+  // encaminhá-las também pelo VS Code causaria conflito de porta.
+  "forwardPorts": [5173],
 
   // Extensões instaladas automaticamente DENTRO do contêiner
   "customizations": {
