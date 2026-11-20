@@ -1,0 +1,99 @@
+# Integração contínua (CI): roda a cada pull request e a cada push na main.
+# Se algum job falhar, o PR fica vermelho e não deve ser mesclado.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Um PR que recebe novo push cancela a execução anterior, que ficou velha
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Permissão mínima: o pipeline só lê o código
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (lint e testes)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - name: Instalar dependências (versões travadas no uv.lock)
+        run: uv sync --locked
+      - name: Lint (ruff)
+        run: uv run ruff check .
+      - name: Formatação (ruff format)
+        run: uv run ruff format --check .
+      - name: Testes (pytest)
+        run: uv run pytest -v
+
+  frontend:
+    name: Frontend (lint e build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependências (versões travadas no package-lock.json)
+        run: npm ci
+      - name: Lint (oxlint)
+        run: npm run lint
+      - name: Build (TypeScript + Vite)
+        run: npm run build
+
+  secrets:
+    name: Segredos (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # histórico completo: procura segredos em todos os commits
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  integration:
+    name: Integração (docker compose)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend] # só roda se lint e testes passaram
+    steps:
+      - uses: actions/checkout@v7
+      - name: Criar .env a partir do modelo
+        run: cp .env.example .env
+      - name: Montar as imagens e subir o sistema
+        run: docker compose up -d --build
+      - name: Esperar o sistema responder pelo nginx
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api/health; then
+              echo; echo "Sistema no ar."; exit 0
+            fi
+            sleep 5
+          done
+          echo "O sistema não respondeu em 150 segundos."; exit 1
+      - name: Conferir que o banco está conectado
+        run: curl -fsS http://localhost:3000/api/health | grep '"database":"ok"'
+      - name: Mostrar o estado e os logs (se algo falhou)
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --tail 50
+      - name: Desligar e apagar tudo
+        if: always()
+        run: docker compose down -v
