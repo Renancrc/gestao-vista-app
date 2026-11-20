@@ -1,0 +1,40 @@
+{
+  // Ambiente de desenvolvimento do Gestão à Vista.
+  // O VS Code abre o projeto DENTRO deste contêiner, com todas as ferramentas.
+  "name": "gestao-vista",
+
+  // Imagem base: Dockerfile ao lado (Debian + Python 3.12, com uma correção no apt)
+  "build": { "dockerfile": "Dockerfile" },
+
+  // "Features" são pacotes prontos que instalam ferramentas na imagem
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+    "ghcr.io/devcontainers/features/terraform:1": {},
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "minikube": "none" },
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  // Roda uma vez, depois que o contêiner é criado (instala uv, kind, k9s e argocd)
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  // Portas liberadas para o navegador do Windows: front, API e banco
+  "forwardPorts": [3000, 8000, 5432],
+
+  // Extensões instaladas automaticamente DENTRO do contêiner
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "hashicorp.terraform",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "github.vscode-github-actions",
+        "ms-azuretools.vscode-containers"
+      ]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# Normaliza finais de linha. Scripts .sh PRECISAM de LF (padrão Linux):
+# com CRLF (padrão Windows) o bash falha com erros como "$'\r': command not found".
+* text=auto
+*.sh text eol=lf
